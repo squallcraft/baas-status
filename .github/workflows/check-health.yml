@@ -1,0 +1,108 @@
+name: BaaS Health Check
+
+# Corre cada 5 minutos. Hace fetch al /health del BaaS, guarda el resultado
+# en data/uptime.json (rolling window de 30 días) y commitea automáticamente.
+# Cuota: 288 ejecuciones diarias × 30 días × ~10s = ~24 hs/mes — dentro del
+# límite gratuito de GitHub Actions para repos públicos (2000 min/mes).
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # cada 5 minutos
+  workflow_dispatch:        # permitir disparo manual desde la UI
+
+permissions:
+  contents: write           # necesario para commitear el JSON actualizado
+
+concurrency:
+  group: health-check       # evita que dos runs se pisen
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run health probe
+        id: probe
+        run: |
+          set +e
+          # Medir latencia + status code en una sola llamada
+          OUTPUT=$(curl -sS -o /tmp/health.json -w "%{http_code}|%{time_total}" \
+                   --max-time 10 \
+                   https://baas.trackingtech.cl/health 2>&1)
+          EXIT=$?
+          set -e
+
+          if [ "$EXIT" -ne 0 ]; then
+            echo "status=down"     >> "$GITHUB_OUTPUT"
+            echo "http_code=000"   >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0"    >> "$GITHUB_OUTPUT"
+            echo "db=unknown"      >> "$GITHUB_OUTPUT"
+            echo "redis=unknown"   >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          HTTP_CODE=$(echo "$OUTPUT" | cut -d'|' -f1)
+          LATENCY_S=$(echo "$OUTPUT" | cut -d'|' -f2)
+          LATENCY_MS=$(awk "BEGIN { printf \"%d\", $LATENCY_S * 1000 }")
+
+          echo "http_code=$HTTP_CODE"     >> "$GITHUB_OUTPUT"
+          echo "latency_ms=$LATENCY_MS"   >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "status=down"   >> "$GITHUB_OUTPUT"
+            echo "db=unknown"    >> "$GITHUB_OUTPUT"
+            echo "redis=unknown" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Parsear el JSON con jq
+          STATUS=$(jq -r '.status // "unknown"' /tmp/health.json)
+          DB=$(jq -r '.db // "unknown"' /tmp/health.json)
+          REDIS=$(jq -r '.redis // "unknown"' /tmp/health.json)
+
+          echo "status=$STATUS"  >> "$GITHUB_OUTPUT"
+          echo "db=$DB"          >> "$GITHUB_OUTPUT"
+          echo "redis=$REDIS"    >> "$GITHUB_OUTPUT"
+
+      - name: Append to uptime.json (rolling 30d)
+        run: |
+          mkdir -p data
+          [ -f data/uptime.json ] || echo "[]" > data/uptime.json
+
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          NEW_ENTRY=$(jq -n \
+            --arg t  "$NOW" \
+            --arg s  "${{ steps.probe.outputs.status }}" \
+            --arg db "${{ steps.probe.outputs.db }}" \
+            --arg rd "${{ steps.probe.outputs.redis }}" \
+            --argjson lat "${{ steps.probe.outputs.latency_ms }}" \
+            --argjson http "${{ steps.probe.outputs.http_code }}" \
+            '{t: $t, s: $s, db: $db, redis: $rd, lat: $lat, http: $http}')
+
+          # Append + filtrar últimas 30 días
+          CUTOFF=$(date -u -d "30 days ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -v -30d +"%Y-%m-%dT%H:%M:%SZ")
+          jq --argjson new "$NEW_ENTRY" --arg cutoff "$CUTOFF" \
+             '. + [$new] | map(select(.t > $cutoff))' \
+             data/uptime.json > data/uptime.json.tmp
+          mv data/uptime.json.tmp data/uptime.json
+
+          # Log breve
+          echo "Status: ${{ steps.probe.outputs.status }} | Latency: ${{ steps.probe.outputs.latency_ms }}ms | DB: ${{ steps.probe.outputs.db }} | Redis: ${{ steps.probe.outputs.redis }}"
+          echo "Total entries in window: $(jq 'length' data/uptime.json)"
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name  "baas-status-bot"
+          git config user.email "baas-status-bot@users.noreply.github.com"
+          git add data/uptime.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: uptime check $(date -u +%Y-%m-%dT%H:%MZ) → ${{ steps.probe.outputs.status }}"
+          git push

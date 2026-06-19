@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BaaS Status · Trackingtech</title>
+<meta name="description" content="Estado en vivo del servicio Billing as a Service de Trackingtech">
+<style>
+  :root {
+    --brand: #003c72;
+    --brand-light: #1d5a96;
+    --accent: #fec601;
+    --bg: #f7f9fc;
+    --card-bg: #ffffff;
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --text-faint: #9ca3af;
+    --border: #e5e7eb;
+
+    --ok: #16a34a;
+    --ok-bg: #ecfdf5;
+    --warn: #d97706;
+    --warn-bg: #fffbeb;
+    --error: #dc2626;
+    --error-bg: #fef2f2;
+    --unknown: #6b7280;
+    --unknown-bg: #f3f4f6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Header ──────────────────────────────────────────────────── */
+  header.top {
+    background: var(--brand);
+    color: white;
+    padding: 1.4rem 2rem 1.2rem;
+    border-bottom: 4px solid var(--accent);
+  }
+  header.top .container {
+    max-width: 980px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+  }
+  header.top .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  header.top .logo {
+    width: 38px;
+    height: 38px;
+    background: var(--accent);
+    color: var(--brand);
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.1rem;
+    font-family: monospace;
+  }
+  header.top h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  header.top h1 .tag {
+    font-size: 0.65rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.85);
+    padding: 0.18em 0.55em;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+  header.top .nav-links {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+  }
+  header.top .nav-links a {
+    color: rgba(255,255,255,0.9);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  header.top .nav-links a:hover { color: white; text-decoration: underline; }
+
+  /* ── Main ───────────────────────────────────────────────────── */
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 1.8rem 2rem 3rem;
+  }
+
+  /* Hero status card */
+  .hero-status {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem 2rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .hero-status .dot-big {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .hero-status h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    display: inline-flex;
+    align-items: center;
+  }
+  .hero-status .sub {
+    margin: 0.4rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+  }
+  .hero-status .last-check {
+    margin-top: 0.8rem;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+  }
+
+  /* Estado: operacional */
+  .hero-status[data-state="ok"]      { border-left: 4px solid var(--ok); }
+  .hero-status[data-state="ok"] .dot-big { background: var(--ok); }
+  .hero-status[data-state="ok"] h2 { color: var(--ok); }
+
+  .hero-status[data-state="degraded"] { border-left: 4px solid var(--warn); }
+  .hero-status[data-state="degraded"] .dot-big { background: var(--warn); }
+  .hero-status[data-state="degraded"] h2 { color: var(--warn); }
+
+  .hero-status[data-state="down"]     { border-left: 4px solid var(--error); }
+  .hero-status[data-state="down"] .dot-big { background: var(--error); }
+  .hero-status[data-state="down"] h2 { color: var(--error); }
+
+  .hero-status[data-state="unknown"]  { border-left: 4px solid var(--unknown); }
+  .hero-status[data-state="unknown"] .dot-big { background: var(--unknown); animation: none; }
+  .hero-status[data-state="unknown"] h2 { color: var(--unknown); }
+
+  /* Componentes */
+  section.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  section.card h3 {
+    margin: 0 0 1rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .components-list {
+    display: grid;
+    gap: 0.6rem;
+  }
+  .component {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fafbfc;
+  }
+  .component .name {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 500;
+  }
+  .component .name .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .component .name .dot.ok    { background: var(--ok); }
+  .component .name .dot.warn  { background: var(--warn); }
+  .component .name .dot.error { background: var(--error); }
+  .component .name .dot.unk   { background: var(--unknown); }
+  .component .pill {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.2em 0.55em;
+    border-radius: 4px;
+  }
+  .component .pill.ok    { background: var(--ok-bg); color: var(--ok); }
+  .component .pill.warn  { background: var(--warn-bg); color: var(--warn); }
+  .component .pill.error { background: var(--error-bg); color: var(--error); }
+  .component .pill.unk   { background: var(--unknown-bg); color: var(--unknown); }
+
+  /* Metrics grid */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.85rem;
+  }
+  .metric {
+    text-align: center;
+    padding: 0.85rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fafbfc;
+  }
+  .metric .value {
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--brand);
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .metric .label {
+    margin-top: 0.25rem;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Histórico timeline */
+  .timeline {
+    display: flex;
+    gap: 2px;
+    height: 36px;
+    align-items: stretch;
+  }
+  .timeline .bar {
+    flex: 1;
+    border-radius: 2px;
+    background: var(--unknown-bg);
+    transition: background 0.15s;
+    cursor: help;
+    position: relative;
+  }
+  .timeline .bar.ok    { background: var(--ok); }
+  .timeline .bar.warn  { background: var(--warn); }
+  .timeline .bar.error { background: var(--error); }
+  .timeline .bar.unk   { background: var(--unknown-bg); }
+  .timeline .bar:hover { opacity: 0.7; }
+  .timeline-legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    margin-top: 0.5rem;
+  }
+
+  /* Incidents */
+  .incidents-list {
+    display: grid;
+    gap: 0.85rem;
+  }
+  .incident {
+    border-left: 3px solid var(--unknown);
+    background: #fafbfc;
+    padding: 0.85rem 1rem;
+    border-radius: 0 6px 6px 0;
+  }
+  .incident.resolved      { border-left-color: var(--ok); }
+  .incident.investigating { border-left-color: var(--warn); }
+  .incident.major         { border-left-color: var(--error); }
+  .incident .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.3rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .incident .meta .title { font-weight: 600; font-size: 0.95rem; }
+  .incident .meta .when  { font-size: 0.78rem; color: var(--text-muted); }
+  .incident .meta .severity {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.1em 0.45em;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  .incident.resolved .severity      { background: var(--ok-bg); color: var(--ok); }
+  .incident.investigating .severity { background: var(--warn-bg); color: var(--warn); }
+  .incident.major .severity         { background: var(--error-bg); color: var(--error); }
+  .incident .body { font-size: 0.88rem; color: var(--text); }
+  .incident .body p { margin: 0.3rem 0; }
+  .no-incidents {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    padding: 1.5rem 1rem 0.5rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+  footer a { color: var(--brand-light); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    main { padding: 1.2rem 1rem 2rem; }
+    .hero-status { padding: 1.5rem 1rem; }
+    .hero-status h2 { font-size: 1.3rem; }
+    .metrics-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <div class="brand">
+      <span class="logo">B</span>
+      <h1>BaaS Status <span class="tag">Trackingtech</span></h1>
+    </div>
+    <nav class="nav-links">
+      <a href="https://baas.trackingtech.cl/integration" target="_blank" rel="noopener">Documentación</a>
+      <a href="https://baas.trackingtech.cl/docs" target="_blank" rel="noopener">API Reference</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- HERO STATUS -->
+  <div id="hero" class="hero-status" data-state="unknown">
+    <h2><span class="dot-big"></span><span id="hero-text">Cargando estado…</span></h2>
+    <p class="sub" id="hero-sub">Comprobando salud del servicio…</p>
+    <p class="last-check" id="last-check">—</p>
+  </div>
+
+  <!-- COMPONENTES -->
+  <section class="card">
+    <h3>Componentes</h3>
+    <div class="components-list" id="components">
+      <div class="component">
+        <span class="name"><span class="dot unk"></span>API (FastAPI)</span>
+        <span class="pill unk" id="comp-api">Sin datos</span>
+      </div>
+      <div class="component">
+        <span class="name"><span class="dot unk"></span>Base de datos (PostgreSQL)</span>
+        <span class="pill unk" id="comp-db">Sin datos</span>
+      </div>
+      <div class="component">
+        <span class="name"><span class="dot unk"></span>Cola de procesamiento (Redis + Celery)</span>
+        <span class="pill unk" id="comp-redis">Sin datos</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- MÉTRICAS -->
+  <section class="card">
+    <h3>Métricas</h3>
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="value" id="metric-latency">—</div>
+        <div class="label">Latencia actual</div>
+      </div>
+      <div class="metric">
+        <div class="value" id="metric-uptime-24h">—</div>
+        <div class="label">Uptime 24h</div>
+      </div>
+      <div class="metric">
+        <div class="value" id="metric-uptime-7d">—</div>
+        <div class="label">Uptime 7 días</div>
+      </div>
+      <div class="metric">
+        <div class="value" id="metric-uptime-30d">—</div>
+        <div class="label">Uptime 30 días</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTÓRICO 24H -->
+  <section class="card">
+    <h3>Últimas 24 horas</h3>
+    <div class="timeline" id="timeline"></div>
+    <div class="timeline-legend">
+      <span>Hace 24 h</span>
+      <span>Ahora</span>
+    </div>
+  </section>
+
+  <!-- INCIDENTES -->
+  <section class="card">
+    <h3>Incidentes recientes (últimos 30 días)</h3>
+    <div class="incidents-list" id="incidents">
+      <div class="no-incidents">Sin incidentes registrados.</div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>
+    BaaS · Trackingtech &nbsp;·&nbsp;
+    Status page actualizada cada 30 segundos · Histórico cada 5 minutos vía GitHub Actions &nbsp;·&nbsp;
+    <a href="https://github.com/squallcraft/baas-status" target="_blank" rel="noopener">Reportar incidente</a>
+  </p>
+</footer>
+
+<script>
+  // ────────────────────────────────────────────────────────────────
+  // Config
+  // ────────────────────────────────────────────────────────────────
+  const HEALTH_URL = "https://baas.trackingtech.cl/health";
+  const UPTIME_DATA_URL = "./data/uptime.json";
+  const INCIDENTS_DATA_URL = "./data/incidents.json";
+  const CHECK_INTERVAL_MS = 30_000;  // poll del browser cada 30s
+
+  // ────────────────────────────────────────────────────────────────
+  // Helpers
+  // ────────────────────────────────────────────────────────────────
+  function fmtTime(d) {
+    return new Date(d).toLocaleString("es-CL", {
+      year: "numeric", month: "short", day: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    });
+  }
+  function fmtRelative(d) {
+    const delta = (Date.now() - new Date(d)) / 1000;
+    if (delta < 60)     return `hace ${Math.floor(delta)} s`;
+    if (delta < 3600)   return `hace ${Math.floor(delta/60)} min`;
+    if (delta < 86400)  return `hace ${Math.floor(delta/3600)} h`;
+    return `hace ${Math.floor(delta/86400)} días`;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Live check
+  // ────────────────────────────────────────────────────────────────
+  async function liveCheck() {
+    const t0 = performance.now();
+    let json = null, error = null, latency = null;
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 10_000);
+      const res = await fetch(HEALTH_URL, { signal: ctrl.signal, cache: "no-store" });
+      clearTimeout(timeout);
+      latency = Math.round(performance.now() - t0);
+      if (!res.ok) {
+        error = `HTTP ${res.status}`;
+      } else {
+        json = await res.json();
+      }
+    } catch (e) {
+      error = e.name === "AbortError" ? "Timeout" : e.message;
+      latency = Math.round(performance.now() - t0);
+    }
+    paintLive(json, error, latency);
+  }
+
+  function paintLive(j, err, latency) {
+    const hero = document.getElementById("hero");
+    const heroText = document.getElementById("hero-text");
+    const heroSub  = document.getElementById("hero-sub");
+    const lastChk  = document.getElementById("last-check");
+
+    const compApi   = document.getElementById("comp-api");
+    const compDb    = document.getElementById("comp-db");
+    const compRedis = document.getElementById("comp-redis");
+
+    let state = "unknown";
+    if (err) {
+      state = "down";
+      heroText.textContent = "Servicio no responde";
+      heroSub.textContent  = `Error: ${err}`;
+      setComp(compApi, "error", "Sin respuesta");
+      setComp(compDb,  "unk",   "Desconocido");
+      setComp(compRedis, "unk", "Desconocido");
+    } else if (j) {
+      if (j.status === "ok") {
+        state = "ok";
+        heroText.textContent = "Todos los sistemas operacionales";
+        heroSub.textContent  = "Emisión, consultas y descargas funcionando con normalidad.";
+      } else if (j.status === "degraded") {
+        state = "degraded";
+        heroText.textContent = "Servicio degradado";
+        heroSub.textContent  = "Algunos componentes presentan problemas. Ver detalle abajo.";
+      }
+      setComp(compApi,   "ok",  "Operacional");
+      setComp(compDb,    j.db === "ok"    ? "ok" : "error", j.db === "ok"    ? "Operacional" : "Error");
+      setComp(compRedis, j.redis === "ok" ? "ok" : "error", j.redis === "ok" ? "Operacional" : "Error");
+    }
+
+    hero.setAttribute("data-state", state);
+    lastChk.textContent = `Última comprobación: ${fmtTime(Date.now())}`;
+
+    document.getElementById("metric-latency").textContent =
+      latency !== null ? `${latency} ms` : "—";
+  }
+
+  function setComp(el, kind, text) {
+    el.className = `pill ${kind}`;
+    el.textContent = text;
+    const dot = el.previousElementSibling?.querySelector(".dot");
+    if (dot) dot.className = `dot ${kind}`;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Histórico desde GitHub Actions (data/uptime.json)
+  // ────────────────────────────────────────────────────────────────
+  async function loadHistory() {
+    let entries = [];
+    try {
+      const res = await fetch(UPTIME_DATA_URL, { cache: "no-store" });
+      if (res.ok) entries = await res.json();
+    } catch { /* primer deploy aún sin data */ }
+
+    paintTimeline(entries);
+    paintUptimeMetrics(entries);
+  }
+
+  function paintTimeline(entries) {
+    const wrap = document.getElementById("timeline");
+    wrap.innerHTML = "";
+    // 24h = 288 buckets de 5 min
+    const NB = 288;
+    const now = Date.now();
+    const winStart = now - 24*60*60*1000;
+    const stepMs = (now - winStart) / NB;
+
+    // Index entries by their bucket
+    const byBucket = new Array(NB).fill(null);
+    for (const e of entries) {
+      const t = new Date(e.t).getTime();
+      if (t < winStart || t > now) continue;
+      const b = Math.min(NB - 1, Math.floor((t - winStart) / stepMs));
+      if (byBucket[b] === null || e.s === "down" || e.s === "degraded") byBucket[b] = e.s;
+    }
+
+    for (let i = 0; i < NB; i++) {
+      const bar = document.createElement("div");
+      bar.className = "bar " + (byBucket[i] === "ok" ? "ok"
+                              : byBucket[i] === "degraded" ? "warn"
+                              : byBucket[i] === "down" ? "error" : "unk");
+      const t = new Date(winStart + i * stepMs);
+      bar.title = `${fmtTime(t)} · ${byBucket[i] || "sin datos"}`;
+      wrap.appendChild(bar);
+    }
+  }
+
+  function paintUptimeMetrics(entries) {
+    document.getElementById("metric-uptime-24h").textContent = calcUptime(entries, 24*60*60*1000);
+    document.getElementById("metric-uptime-7d").textContent  = calcUptime(entries, 7*24*60*60*1000);
+    document.getElementById("metric-uptime-30d").textContent = calcUptime(entries, 30*24*60*60*1000);
+  }
+
+  function calcUptime(entries, windowMs) {
+    const now = Date.now();
+    const winStart = now - windowMs;
+    const inWin = entries.filter(e => new Date(e.t).getTime() >= winStart);
+    if (inWin.length === 0) return "—";
+    const okCount = inWin.filter(e => e.s === "ok").length;
+    const pct = (okCount / inWin.length) * 100;
+    return pct.toFixed(2) + "%";
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Incidentes manuales (data/incidents.json)
+  // ────────────────────────────────────────────────────────────────
+  async function loadIncidents() {
+    let arr = [];
+    try {
+      const res = await fetch(INCIDENTS_DATA_URL, { cache: "no-store" });
+      if (res.ok) arr = await res.json();
+    } catch { /* sin incidentes registrados */ }
+
+    const root = document.getElementById("incidents");
+    const recent = arr.filter(i => {
+      return (Date.now() - new Date(i.date).getTime()) < 30*24*60*60*1000;
+    }).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (recent.length === 0) {
+      root.innerHTML = `<div class="no-incidents">Sin incidentes registrados en los últimos 30 días.</div>`;
+      return;
+    }
+
+    root.innerHTML = recent.map(inc => `
+      <article class="incident ${inc.status}">
+        <div class="meta">
+          <span class="title">${escapeHtml(inc.title)}</span>
+          <span class="severity">${escapeHtml(inc.status)}</span>
+        </div>
+        <div class="meta">
+          <span class="when">${fmtTime(inc.date)} (${fmtRelative(inc.date)})</span>
+        </div>
+        <div class="body">${formatIncidentBody(inc.body || "")}</div>
+      </article>
+    `).join("");
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+    }[c]));
+  }
+  function formatIncidentBody(s) {
+    return escapeHtml(s).split("\n").filter(l => l.trim()).map(l => `<p>${l}</p>`).join("");
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Boot
+  // ────────────────────────────────────────────────────────────────
+  liveCheck();
+  loadHistory();
+  loadIncidents();
+  setInterval(liveCheck, CHECK_INTERVAL_MS);
+  setInterval(loadHistory, 5*60*1000);  // recargar histórico cada 5 min
+</script>
+
+</body>
+</html>
