@@ -1486,5 +1486,13 @@
     "redis": "unknown",
     "lat": 0,
     "http": 0
+  },
+  {
+    "t": "2026-07-05T18:12:13Z",
+    "s": "down",
+    "db": "unknown",
+    "redis": "unknown",
+    "lat": 0,
+    "http": 0
   }
 ]
