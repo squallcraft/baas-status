@@ -1,21 +1,5 @@
 [
   {
-    "t": "2026-07-05T15:56:49Z",
-    "s": "down",
-    "db": "unknown",
-    "redis": "unknown",
-    "lat": 0,
-    "http": 0
-  },
-  {
-    "t": "2026-07-05T17:04:44Z",
-    "s": "down",
-    "db": "unknown",
-    "redis": "unknown",
-    "lat": 0,
-    "http": 0
-  },
-  {
     "t": "2026-07-05T18:12:13Z",
     "s": "down",
     "db": "unknown",
@@ -3461,6 +3445,14 @@
     "db": "ok",
     "redis": "ok",
     "lat": 379,
+    "http": 200
+  },
+  {
+    "t": "2026-08-04T17:17:42Z",
+    "s": "ok",
+    "db": "ok",
+    "redis": "ok",
+    "lat": 264,
     "http": 200
   }
 ]
